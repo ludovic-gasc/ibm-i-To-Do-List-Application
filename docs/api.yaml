@@ -1,0 +1,645 @@
+openapi: 3.1.0
+info:
+  title: To-Do List API
+  description: "REST API for managing to-do items — create, read, update status, and\
+    \ delete todos."
+  contact:
+    name: Ludovic Gasc
+    url: https://github.com/LudovicGasc/To-Do-List-Application
+  license:
+    name: Apache 2.0
+    url: https://www.apache.org/licenses/LICENSE-2.0
+  version: 0.0.1-SNAPSHOT
+servers:
+- url: http://localhost:8080
+  description: Generated server url
+tags:
+- name: Todos
+  description: Operations for managing to-do items
+- name: Actuator
+  description: Monitor and interact
+  externalDocs:
+    description: Spring Boot Actuator Web API Documentation
+    url: https://docs.spring.io/spring-boot/docs/current/actuator-api/html/
+paths:
+  /todo/status/{id}/{status}:
+    put:
+      tags:
+      - Todos
+      summary: Update todo status
+      description: Updates the done/pending status of a todo identified by its ID.
+      operationId: updateTodoStatus
+      parameters:
+      - name: id
+        in: path
+        description: ID of the todo to update
+        required: true
+        schema:
+          type: integer
+          format: int32
+        example: 1
+      - name: status
+        in: path
+        description: "New status: true = done, false = pending"
+        required: true
+        schema:
+          type: boolean
+        example: true
+      responses:
+        "200":
+          description: Status updated
+          content:
+            '*/*':
+              schema:
+                type: string
+              examples:
+                found:
+                  description: found
+                  value: "Status updated for id: 1"
+                not found:
+                  description: not found
+                  value: Todo Id not Found
+  /todo:
+    post:
+      tags:
+      - Todos
+      summary: Create a todo
+      description: Adds a new todo item to the list.
+      operationId: addTodo
+      requestBody:
+        description: Todo item to create
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Todo"
+            examples:
+              new todo:
+                description: new todo
+                value:
+                  todoId: 3
+                  name: Go for a run
+                  todoDoneStatus: false
+        required: true
+      responses:
+        "200":
+          description: Todo created successfully
+          content:
+            '*/*':
+              schema:
+                type: string
+              example: New Todo Added
+  /actuator/loggers/{name}:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'loggers-name'
+      operationId: loggerLevels
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not Found
+    post:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'loggers-name'
+      operationId: configureLogLevel
+      parameters:
+      - name: name
+        in: path
+        required: true
+        schema:
+          type: string
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: string
+              enum:
+              - TRACE
+              - DEBUG
+              - INFO
+              - WARN
+              - ERROR
+              - FATAL
+              - "OFF"
+      responses:
+        "204":
+          description: No Content
+        "400":
+          description: Bad Request
+  /todos:
+    get:
+      tags:
+      - Todos
+      summary: Get all todos
+      description: Returns the complete list of todos regardless of their status.
+      operationId: getAllTodos
+      responses:
+        "200":
+          description: List of all todos
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+              examples:
+                sample:
+                  description: sample
+                  value:
+                  - todoId: 1
+                    name: Buy groceries
+                    todoDoneStatus: false
+                  - todoId: 2
+                    name: Read a book
+                    todoDoneStatus: true
+  /todo/pending:
+    get:
+      tags:
+      - Todos
+      summary: Get pending todos
+      description: Returns only todos that are not yet done.
+      operationId: notDoneTodos
+      responses:
+        "200":
+          description: List of pending todos
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+              examples:
+                sample:
+                  description: sample
+                  value:
+                  - todoId: 1
+                    name: Buy groceries
+                    todoDoneStatus: false
+  /todo/done:
+    get:
+      tags:
+      - Todos
+      summary: Get completed todos
+      description: Returns only todos whose status is marked as done.
+      operationId: getDoneTodos
+      responses:
+        "200":
+          description: List of completed todos
+          content:
+            '*/*':
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Todo"
+              examples:
+                sample:
+                  description: sample
+                  value:
+                  - todoId: 2
+                    name: Read a book
+                    todoDoneStatus: true
+  /actuator:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator root web endpoint
+      operationId: links
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: "#/components/schemas/Link"
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: "#/components/schemas/Link"
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: object
+                  additionalProperties:
+                    $ref: "#/components/schemas/Link"
+  /actuator/threaddump:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'threaddump'
+      operationId: threadDump
+      responses:
+        "200":
+          description: OK
+          content:
+            text/plain;charset=UTF-8:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/scheduledtasks:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'scheduledtasks'
+      operationId: scheduledTasks
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/sbom:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'sbom'
+      operationId: sboms
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/sbom/{id}:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'sbom-id'
+      operationId: sbom
+      parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/octet-stream:
+              schema:
+                type: object
+        "404":
+          description: Not Found
+  /actuator/metrics:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'metrics'
+      operationId: listNames
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/metrics/{requiredMetricName}:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'metrics-requiredMetricName'
+      operationId: metric
+      parameters:
+      - name: requiredMetricName
+        in: path
+        required: true
+        schema:
+          type: string
+      - name: tag
+        in: query
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not Found
+  /actuator/mappings:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'mappings'
+      operationId: mappings
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/loggers:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'loggers'
+      operationId: loggers
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/info:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'info'
+      operationId: info
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/health:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'health'
+      operationId: health
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/env:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'env'
+      operationId: environment
+      parameters:
+      - name: pattern
+        in: query
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/env/{toMatch}:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'env-toMatch'
+      operationId: environmentEntry
+      parameters:
+      - name: toMatch
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not Found
+  /actuator/configprops:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'configprops'
+      operationId: configurationProperties
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/configprops/{prefix}:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'configprops-prefix'
+      operationId: configurationPropertiesWithPrefix
+      parameters:
+      - name: prefix
+        in: path
+        required: true
+        schema:
+          type: string
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+        "404":
+          description: Not Found
+  /actuator/conditions:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'conditions'
+      operationId: conditions
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /actuator/beans:
+    get:
+      tags:
+      - Actuator
+      summary: Actuator web endpoint 'beans'
+      operationId: beans
+      responses:
+        "200":
+          description: OK
+          content:
+            application/vnd.spring-boot.actuator.v3+json:
+              schema:
+                type: object
+            application/vnd.spring-boot.actuator.v2+json:
+              schema:
+                type: object
+            application/json:
+              schema:
+                type: object
+  /todo/delete:
+    delete:
+      tags:
+      - Todos
+      summary: Delete a todo
+      description: Removes a todo item from the list by its ID.
+      operationId: removeTodo
+      parameters:
+      - name: id
+        in: query
+        description: ID of the todo to delete
+        required: true
+        schema:
+          type: integer
+          format: int32
+        example: 1
+      responses:
+        "200":
+          description: Todo deleted
+          content:
+            '*/*':
+              schema:
+                type: string
+              examples:
+                found:
+                  description: found
+                  value: Todo deleted
+                not found:
+                  description: not found
+                  value: The Todo u want to delete does not exist
+components:
+  schemas:
+    Todo:
+      type: object
+      description: Represents a to-do item
+      properties:
+        todoId:
+          type: integer
+          format: int32
+          description: Unique identifier of the todo
+          example: 1
+        name:
+          type: string
+          description: Title or description of the todo
+          example: Buy groceries
+        todoDoneStatus:
+          type: boolean
+    Link:
+      type: object
+      properties:
+        href:
+          type: string
+        templated:
+          type: boolean
