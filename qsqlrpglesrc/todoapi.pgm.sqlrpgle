@@ -1,17 +1,14 @@
 **FREE
 // ============================================================
-// TODOAPI – REST/JSON handler for the To-Do List application
+// TODOAPI - REST/JSON handler for the To-Do List application
 //
 // Routes (mimics docs/api.yaml):
 //   GET    /todos          -> getAllTodos
 //   GET    /todo/pending   -> notDoneTodos
 //   GET    /todo/done      -> getDoneTodos
-//   POST   /todo           -> addTodo        body: {todoId,name,todoDoneStatus}
+//   POST   /todo           -> addTodo
 //   PUT    /todo/status/{id}/{status} -> updateTodoStatus
 //   DELETE /todo/delete?id=n -> removeTodo
-//
-// Runs under QHTTPSVR (IWS) via HTTPRQST or as a TOBI REST entry
-// Uses the TODOSVC service program for all data access.
 //
 // Compile: CRTSQLRPGI OBJ(*CURLIB/TODOAPI) SRCSTMF('.../todoapi.sqlrpgle')
 //          BNDDIR(*CURLIB/TODOSVC_BD) OPTION(*EVENTF) DBGVIEW(*SOURCE)
@@ -22,29 +19,30 @@ ctl-opt dftactgrp(*no)
         datfmt(*iso)
         bnddir('TODOSVC_BD');
 
-// ---- HTTP/IWS built-ins ------------------------------------
-dcl-pr QtmhGetInput    extproc('QtmhGetInput');
-  buffer   char(65535) options(*varsize);
-  bufLen   int(10)     const;
-  bytesIn  int(10);
-  errorDs  char(32767) options(*varsize);
+// ---- HTTP/IWS CGI APIs (QHTTPSVR/QTMHCGI) ------------------
+// QtmhGetEnv - get CGI environment variable
+dcl-pr QtmhGetEnv extproc('QtmhGetEnv');
+  receiver   char(1024) options(*varsize);  // value returned here
+  recvLen    int(10);                       // length of receiver
+  valueLen   int(10);                       // actual length returned
+  varName    char(128)  options(*varsize);  // env var name
+  nameLen    int(10);                       // length of name
+  errorCode  char(256)  options(*varsize);  // error code DS
 end-pr;
 
-dcl-pr QtmhWrStout     extproc('QtmhWrStout');
-  buffer   char(65535) options(*varsize);
-  bufLen   int(10)     const;
-  errorDs  char(32767) options(*varsize);
+// QtmhRdStin - read from stdin (request body)
+dcl-pr QtmhRdStin extproc('QtmhRdStin');
+  receiver  char(65535) options(*varsize);  // data receiver
+  recvLen   int(10);                        // receiver length
+  bytesRead int(10);                        // bytes actually read
+  errorCode char(256)   options(*varsize);  // error code DS
 end-pr;
 
-// ---- Environment variables (CGI) ---------------------------
-dcl-pr getenv          pointer extproc('getenv');
-  name   pointer value options(*string);
-end-pr;
-
-dcl-pr memcpy          pointer extproc('memcpy');
-  dest   pointer value;
-  src    pointer value;
-  len    int(10)  value;
+// QtmhWrStout - write to stdout (response)
+dcl-pr QtmhWrStout extproc('QtmhWrStout');
+  buffer    char(65535) options(*varsize);  // data to write
+  bufLen    int(10);                        // length to write
+  errorCode char(256)   options(*varsize);  // error code DS
 end-pr;
 
 // ---- Service program procedures ----------------------------
@@ -55,32 +53,20 @@ dcl-s reqMethod   varchar(10);
 dcl-s pathInfo    varchar(1024);
 dcl-s queryString varchar(1024);
 dcl-s contentType varchar(256);
-dcl-s inputBuf    varchar(65535);
-dcl-s bytesIn     int(10);
-dcl-s errorDs     char(32767);
-dcl-s response    varchar(65535);
-dcl-s statusLine  varchar(200);
 
 dcl-ds todos      likeds(TodoDS) dim(TODOS_MAX_ROWS);
 dcl-s  todoCount  int(10);
 dcl-s  i          int(10);
 dcl-ds wTodo      likeds(TodoDS);
 
-// Temp parsing
-dcl-s  pEnv       pointer;
-dcl-s  envVal     varchar(1024) based(pEnv);
-
 // ============================================================
 // Main entry point
 // ============================================================
+reqMethod   = getEnvStr('REQUEST_METHOD': 10);
+pathInfo    = getEnvStr('PATH_INFO': 1024);
+queryString = getEnvStr('QUERY_STRING': 1024);
+contentType = getEnvStr('CONTENT_TYPE': 256);
 
-// Read CGI environment
-reqMethod   = getEnvStr('REQUEST_METHOD');
-pathInfo    = getEnvStr('PATH_INFO');
-queryString = getEnvStr('QUERY_STRING');
-contentType = getEnvStr('CONTENT_TYPE');
-
-// Route the request
 select;
   when reqMethod = 'GET' and pathInfo = '/todos';
     handleGetAll();
@@ -103,7 +89,7 @@ endsl;
 return;
 
 // ============================================================
-// handleGetAll – GET /todos
+// handleGetAll - GET /todos
 // ============================================================
 dcl-proc handleGetAll;
   todoCount = GetAllsTodos(todos);
@@ -111,7 +97,7 @@ dcl-proc handleGetAll;
 end-proc;
 
 // ============================================================
-// handleGetPending – GET /todo/pending
+// handleGetPending - GET /todo/pending
 // ============================================================
 dcl-proc handleGetPending;
   todoCount = GetPendingTodos(todos);
@@ -119,7 +105,7 @@ dcl-proc handleGetPending;
 end-proc;
 
 // ============================================================
-// handleGetDone – GET /todo/done
+// handleGetDone - GET /todo/done
 // ============================================================
 dcl-proc handleGetDone;
   todoCount = GetDoneTodos(todos);
@@ -127,7 +113,7 @@ dcl-proc handleGetDone;
 end-proc;
 
 // ============================================================
-// handlePost – POST /todo  body: {"todoId":3,"name":"...","todoDoneStatus":false}
+// handlePost - POST /todo
 // ============================================================
 dcl-proc handlePost;
   dcl-s rawBody   varchar(65535);
@@ -136,8 +122,6 @@ dcl-proc handlePost;
   dcl-s rc        int(10);
 
   rawBody = readStdin();
-
-  // Simple JSON field extraction (no external parser)
   nameVal   = jsonExtract(rawBody: 'name');
   statusVal = jsonExtract(rawBody: 'todoDoneStatus');
 
@@ -150,7 +134,6 @@ dcl-proc handlePost;
   clear wTodo;
   wTodo.name       = nameVal;
   wTodo.doneStatus = (statusVal = 'true');
-
   rc = AddTodo(wTodo);
 
   if rc = 1;
@@ -162,22 +145,19 @@ dcl-proc handlePost;
 end-proc;
 
 // ============================================================
-// handlePutStatus – PUT /todo/status/{id}/{status}
-// pathInfo = /todo/status/1/true
+// handlePutStatus - PUT /todo/status/{id}/{status}
 // ============================================================
 dcl-proc handlePutStatus;
-  dcl-s parts   varchar(1024);
-  dcl-s seg4    varchar(20);
-  dcl-s seg5    varchar(20);
-  dcl-s wId     int(10);
-  dcl-s wDone   ind;
-  dcl-s rc      int(10);
+  dcl-s parts varchar(1024);
+  dcl-s seg4  varchar(20);
+  dcl-s seg5  varchar(20);
+  dcl-s wId   int(10);
+  dcl-s wDone ind;
+  dcl-s rc    int(10);
 
-  // pathInfo format: /todo/status/{id}/{status}
-  // Split by '/'  position 4 = id, position 5 = status
-  parts = pathInfo;                          // /todo/status/1/true
-  seg4  = getPathSegment(parts: 4);          // '1'
-  seg5  = getPathSegment(parts: 5);          // 'true'
+  parts = pathInfo;
+  seg4  = getPathSegment(parts: 4);
+  seg5  = getPathSegment(parts: 5);
 
   if seg4 = '' or seg5 = '';
     sendResponse('400 Bad Request': 'application/json':
@@ -187,8 +167,7 @@ dcl-proc handlePutStatus;
 
   wId   = %int(seg4);
   wDone = (seg5 = 'true');
-
-  rc = UpdateTodoStatus(wId: wDone);
+  rc    = UpdateTodoStatus(wId: wDone);
 
   if rc = 1;
     sendResponse('200 OK': 'application/json':
@@ -199,7 +178,7 @@ dcl-proc handlePutStatus;
 end-proc;
 
 // ============================================================
-// handleDelete – DELETE /todo/delete?id=n
+// handleDelete - DELETE /todo/delete?id=n
 // ============================================================
 dcl-proc handleDelete;
   dcl-s wId varchar(20);
@@ -219,12 +198,12 @@ dcl-proc handleDelete;
     sendResponse('200 OK': 'application/json': '"Todo deleted"');
   else;
     sendResponse('200 OK': 'application/json':
-                 '"The Todo u want to delete does not exist"');
+                 '"The Todo does not exist"');
   endif;
 end-proc;
 
 // ============================================================
-// buildJsonArray – serialize todo array to JSON
+// buildJsonArray - serialize todos to JSON array
 // ============================================================
 dcl-proc buildJsonArray;
   dcl-pi *n varchar(65535);
@@ -245,73 +224,85 @@ dcl-proc buildJsonArray;
           + '}';
   endfor;
   json += ']';
-
   return json;
 end-proc;
 
 // ============================================================
-// sendResponse – write HTTP headers + body to stdout
+// sendResponse - write HTTP headers + body via QtmhWrStout
 // ============================================================
 dcl-proc sendResponse;
   dcl-pi *n;
-    status  varchar(200) const;
-    ctype   varchar(256) const;
+    status  varchar(200)   const;
+    ctype   varchar(256)   const;
     body    varchar(65535) const;
   end-pi;
 
-  dcl-s  headers varchar(1024);
-  dcl-s  output  varchar(65535);
-  dcl-s  errDs   char(32767);
-  dcl-s  bodyLen int(10);
+  dcl-s  headers  varchar(1024);
+  dcl-s  output   varchar(65535);
+  dcl-s  outBuf   char(65535);
+  dcl-s  errDs    char(256);
+  dcl-s  outLen   int(10);
 
   headers = 'Status: ' + status + x'0D0A'
           + 'Content-Type: ' + ctype + x'0D0A'
           + x'0D0A';
-  output = headers + body;
-  bodyLen = %len(%trim(output));
-
-  QtmhWrStout(%str(%addr(output):bodyLen): bodyLen: errDs);
+  output  = headers + body;
+  outLen  = %len(output);
+  %subst(outBuf: 1: outLen) = output;
+  QtmhWrStout(outBuf: outLen: errDs);
 end-proc;
 
 // ============================================================
-// readStdin – read request body from stdin
+// readStdin - read request body via QtmhRdStin
 // ============================================================
 dcl-proc readStdin;
   dcl-pi *n varchar(65535);
   end-pi;
 
-  dcl-s buf     char(65535);
-  dcl-s read    int(10);
-  dcl-s errDs   char(32767);
+  dcl-s buf       char(65535);
+  dcl-s bufLen    int(10);
+  dcl-s bytesRead int(10);
+  dcl-s errDs     char(256);
 
-  QtmhGetInput(buf: %size(buf): read: errDs);
-  if read > 0;
-    return %trim(%subst(buf: 1: read));
+  bufLen = %size(buf);
+  QtmhRdStin(buf: bufLen: bytesRead: errDs);
+  if bytesRead > 0;
+    return %trim(%subst(buf: 1: bytesRead));
   endif;
   return '';
 end-proc;
 
 // ============================================================
-// getEnvStr – read a CGI environment variable as varchar
+// getEnvStr - read a CGI environment variable via QtmhGetEnv
 // ============================================================
 dcl-proc getEnvStr;
   dcl-pi *n varchar(1024);
-    name varchar(64) const;
+    varName  varchar(128) const;
+    maxLen   int(10)      const;
   end-pi;
 
-  dcl-s ptr    pointer;
-  dcl-s val    varchar(1024) based(ptr);
+  dcl-s receiver  char(1024);
+  dcl-s recvLen   int(10);
+  dcl-s valueLen  int(10);
+  dcl-s nameBuf   char(128);
+  dcl-s nameLen   int(10);
+  dcl-s errDs     char(256);
 
-  ptr = getenv(%addr(name) + 0);  // null-terminated via options(*string) on caller
-  if ptr = *null;
-    return '';
+  clear receiver;
+  recvLen = maxLen;
+  nameBuf = varName;
+  nameLen = %len(varName);
+
+  QtmhGetEnv(receiver: recvLen: valueLen: nameBuf: nameLen: errDs);
+
+  if valueLen > 0;
+    return %subst(receiver: 1: %min(valueLen: maxLen));
   endif;
-  return val;
+  return '';
 end-proc;
 
 // ============================================================
-// jsonExtract – naive JSON value extractor for simple objects
-// Only handles string and boolean values, no nesting
+// jsonExtract - naive JSON value extractor
 // ============================================================
 dcl-proc jsonExtract;
   dcl-pi *n varchar(200);
@@ -319,12 +310,11 @@ dcl-proc jsonExtract;
     key  varchar(64)    const;
   end-pi;
 
-  dcl-s search  varchar(70);
-  dcl-s pos1    int(10);
-  dcl-s pos2    int(10);
-  dcl-s val     varchar(200);
+  dcl-s search varchar(70);
+  dcl-s pos1   int(10);
+  dcl-s pos2   int(10);
+  dcl-s val    varchar(200);
 
-  // Look for "key":
   search = '"' + key + '":';
   pos1 = %scan(search: json);
   if pos1 = 0;
@@ -332,20 +322,17 @@ dcl-proc jsonExtract;
   endif;
   pos1 += %len(search);
 
-  // Skip whitespace
   dow pos1 <= %len(json) and %subst(json: pos1: 1) = ' ';
     pos1 += 1;
   enddo;
 
   if %subst(json: pos1: 1) = '"';
-    // String value
     pos1 += 1;
     pos2 = %scan('"': json: pos1);
     if pos2 > 0;
       val = %subst(json: pos1: pos2 - pos1);
     endif;
   else;
-    // Boolean/number value – ends at , or }
     pos2 = %scan(',': json: pos1);
     if pos2 = 0;
       pos2 = %scan('}': json: pos1);
@@ -354,12 +341,12 @@ dcl-proc jsonExtract;
       val = %trimr(%subst(json: pos1: pos2 - pos1));
     endif;
   endif;
-
   return val;
 end-proc;
 
 // ============================================================
-// jsonEscape – escape double-quotes and backslashes
+// jsonEscape - escape double-quotes and backslashes
+// EBCDIC 037: x'7F'=double-quote  x'E0'=backslash
 // ============================================================
 dcl-proc jsonEscape;
   dcl-pi *n varchar(400);
@@ -369,27 +356,31 @@ dcl-proc jsonEscape;
   dcl-s result varchar(400);
   dcl-s i      int(10);
   dcl-s ch     char(1);
+  dcl-c DQUOTE x'7F';
+  dcl-c BSLASH x'E0';
 
   result = '';
   for i = 1 to %len(str);
     ch = %subst(str: i: 1);
     select;
-      when ch = '"';   result += '\"';
-      when ch = '\';   result += '\\';
-      other;           result += ch;
+      when ch = DQUOTE;
+        result += BSLASH + DQUOTE;
+      when ch = BSLASH;
+        result += BSLASH + BSLASH;
+      other;
+        result += ch;
     endsl;
   endfor;
   return result;
 end-proc;
 
 // ============================================================
-// getPathSegment – return Nth segment of a slash-delimited path
-// Counting starts at 1.  /todo/status/1/true -> 4='1', 5='true'
+// getPathSegment - Nth segment of a /slash/delimited/path
 // ============================================================
 dcl-proc getPathSegment;
   dcl-pi *n varchar(64);
-    path    varchar(1024) const;
-    segNum  int(10)       const;
+    path   varchar(1024) const;
+    segNum int(10)       const;
   end-pi;
 
   dcl-s remaining varchar(1024);
@@ -416,18 +407,16 @@ dcl-proc getPathSegment;
       return seg;
     endif;
   enddo;
-
   return '';
 end-proc;
 
 // ============================================================
-// getQueryParam – extract value of a named query string param
-// e.g.  id=5  ->  '5'
+// getQueryParam - extract ?key=value from query string
 // ============================================================
 dcl-proc getQueryParam;
   dcl-pi *n varchar(200);
-    qs    varchar(1024) const;
-    key   varchar(64)   const;
+    qs  varchar(1024) const;
+    key varchar(64)   const;
   end-pi;
 
   dcl-s search varchar(70);
@@ -450,7 +439,7 @@ dcl-proc getQueryParam;
 end-proc;
 
 // ============================================================
-// startsWith – return *ON if str starts with prefix
+// startsWith - return *ON if str begins with prefix
 // ============================================================
 dcl-proc startsWith;
   dcl-pi *n ind;

@@ -26,7 +26,7 @@ dcl-proc GetAllsTodos export;
   dcl-s  idx       int(10) inz(0);
   dcl-s  hTodoId   int(10);
   dcl-s  hName     varchar(200);
-  dcl-s  hDone     smallint;
+  dcl-s  hDone     int(10);
 
   exec sql
     DECLARE c_all CURSOR FOR
@@ -62,7 +62,7 @@ dcl-proc GetPendingTodos export;
   dcl-s  idx       int(10) inz(0);
   dcl-s  hTodoId   int(10);
   dcl-s  hName     varchar(200);
-  dcl-s  hDone     smallint;
+  dcl-s  hDone     int(10);
 
   exec sql
     DECLARE c_pend CURSOR FOR
@@ -99,7 +99,7 @@ dcl-proc GetDoneTodos export;
   dcl-s  idx       int(10) inz(0);
   dcl-s  hTodoId   int(10);
   dcl-s  hName     varchar(200);
-  dcl-s  hDone     smallint;
+  dcl-s  hDone     int(10);
 
   exec sql
     DECLARE c_done CURSOR FOR
@@ -135,7 +135,7 @@ dcl-proc AddTodo export;
   end-pi;
 
   dcl-s hName   varchar(200);
-  dcl-s hStatus smallint;
+  dcl-s hStatus int(10);
 
   hName   = todo.name;
   hStatus = %int(todo.doneStatus);
@@ -161,7 +161,7 @@ dcl-proc UpdateTodoStatus export;
     done    ind     const;
   end-pi;
 
-  dcl-s hStatus smallint;
+  dcl-s hStatus int(10);
   dcl-s hId     int(10);
 
   hId     = todoId;
