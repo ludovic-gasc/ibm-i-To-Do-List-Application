@@ -1,0 +1,91 @@
+     A*==============================================================
+     A* TODODSPF - Display file for the To-Do List 5250 application
+     A*
+     A* Record formats:
+     A*   SFRCD  - Subfile record (one todo per row)
+     A*   SFCTL  - Subfile control record
+     A*   ADDSCR - Add new todo screen
+     A*
+     A* Indicators:
+     A*   01  SFLEND (last page of subfile)
+     A*   02  SFLDSP/SFLDSPCTL (subfile has data)
+     A*   03  SFLCLR (subfile empty, clear before reload)
+     A*   20  Error colour on message field
+     A*   71  F5 Refresh
+     A*   72  F6 Add new / F12 Cancel
+     A*   73  F8 Pending only
+     A*   74  F9 Done only
+     A*   75  F10 All
+     A*   98  RollUp / RollDown
+     A*   99  F3 Exit
+     A*==============================================================
+     A                                      DSPSIZ(24 80 *DS3)
+     A                                      INDARA
+     A*--------------------------------------------------------------
+     A* SFRCD - Subfile record (one row per todo)
+     A*--------------------------------------------------------------
+     A          R SFRCD                     SFL
+     A            SFSEL          1A  B  8  3
+     A                                      VALUES(' ' '1' '4' '5')
+     A                                      DSPATR(HI)
+     A            SFTODOID       5P 0O  8  6EDTCDE(Z)
+     A            SFNAME        40A  O  8 13DSPATR(HI)
+     A            SFDONE         1A  O  8 55COLOR(GRN)
+     A*--------------------------------------------------------------
+     A* SFCTL - Subfile control record
+     A*--------------------------------------------------------------
+     A          R SFCTL                     SFLCTL(SFRCD)
+     A                                      SFLSIZ(0014)
+     A                                      SFLPAG(0007)
+     A 01                                   SFLEND(*MORE)
+     AN02                                   SFLCLR
+     A 02                                   SFLDSP
+     A 02                                   SFLDSPCTL
+     A 03                                   SFLMSG('No records found.')
+     A                                      CA03(99 'Exit')
+     A                                      CA05(71 'Refresh')
+     A                                      CA06(72 'Add')
+     A                                      CA08(73 'Pending')
+     A                                      CA09(74 'Done')
+     A                                      CA10(75 'All')
+     A                                      CA12(99 'Exit')
+     A                                      ROLLUP(98)
+     A                                      ROLLDOWN(98)
+     A                                   1  2'To-Do List'
+     A                                      DSPATR(HI)
+     A                                   1 30'IBM i To-Do App'
+     A                                      DSPATR(HI)
+     A                                   1 71DATE
+     A                                      EDTCDE(Y)
+     A                                   3  2'Sel  ID  Task'
+     A                                      DSPATR(UL)
+     A                                   3 44'Status'
+     A                                      DSPATR(UL)
+     A                                   3 52'1=Tog 4=Del 5=View'
+     A                                  17  2'F5=Refresh  F6=Add'
+     A                                  17 22'F8=Pending  F9=Done'
+     A                                  17 42'F10=All  F3=Exit'
+     A            SFMSG         79A  O 24  1
+     A 20                                   DSPATR(HI)
+     A*--------------------------------------------------------------
+     A* ADDSCR - Add new todo screen
+     A*--------------------------------------------------------------
+     A          R ADDSCR
+     A                                      CA03(99 'Exit')
+     A                                      CA12(72 'Cancel')
+     A                                      OVERLAY
+     A                                   1  2'Add New To-Do'
+     A                                      DSPATR(HI)
+     A                                   1 30'IBM i To-Do App'
+     A                                      DSPATR(HI)
+     A                                   1 71DATE
+     A                                      EDTCDE(Y)
+     A                                   5  5'Task Description:'
+     A            ADDNAME       40A  B  5 24DSPATR(HI)
+     A                                      CHECK(LC)
+     A                                   7  5'Status (Y/N):'
+     A            ADDDONE        1A  B  7 20VALUES('Y' 'y' 'N' 'n')
+     A                                      DSPATR(HI)
+     A                                  10  5'Enter=Save  F3/F12=Cancel'
+     A            ADDERR        79A  O 24  1
+     A 20                                   DSPATR(HI)

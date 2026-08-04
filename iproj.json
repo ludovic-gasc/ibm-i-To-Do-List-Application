@@ -1,0 +1,11 @@
+{
+  "description": "IBM i To-Do List Application",
+  "version": "0.0.1",
+  "repository": "https://github.com/LudovicGasc/To-Do-List-Application",
+  "license": "Apache-2.0",
+  "objlib": "TODOLIB",
+  "curlib": "TODOLIB",
+  "includePath": ["qcpysrc"],
+  "buildCommand": "OPT=*EVENTF makei build",
+  "compileCommand": "OPT=*EVENTF makei compile -f {filename}"
+}

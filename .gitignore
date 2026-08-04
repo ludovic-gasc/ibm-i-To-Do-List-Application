@@ -1,3 +1,7 @@
+# IBM i logs
+.evfevent
+.logs
+
 # SSH private keys
 *.pem
 *.key

@@ -1,0 +1,12 @@
+/*------------------------------------------------------------------*/
+/* TODOSVC – Binder language source                                 */
+/* Exports all public procedures from the TODOSVC module            */
+/*------------------------------------------------------------------*/
+STRPGMEXP PGMLVL(*CURRENT) SIGNATURE('TODOSVC')
+  EXPORT SYMBOL('GETALLSTODOS')
+  EXPORT SYMBOL('GETPENDINGTODOS')
+  EXPORT SYMBOL('GETDONETODOS')
+  EXPORT SYMBOL('ADDTODO')
+  EXPORT SYMBOL('UPDATETODOSTATUS')
+  EXPORT SYMBOL('REMOVETODO')
+ENDPGMEXP
