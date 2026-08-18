@@ -3,8 +3,8 @@
      A*
      A* Record formats:
      A*   SFRCD  - Subfile record (one todo per row)
-     A*   SFCTL  - Subfile control record (rows 1-7 constants ONLY)
-     A*   SFFOOT - OVERLAY record for F-key labels (rows 16-17)
+     A*   SFCTL  - Subfile control (OVERLAY, rows 1-7 constants + subfile 8-14)
+     A*   SFFOOT - OVERLAY record for F-key labels (rows 22-23)
      A*   ADDSCR - Add new todo screen
      A*
      A* CPD7812 rule: SFCTL footprint = row-of-first-constant to
@@ -44,9 +44,10 @@
      A* SFMSG field at row 7 col 1 for dynamic messages.
      A*--------------------------------------------------------------
      A          R SFCTL                     SFLCTL(SFRCD)
+     A                                      OVERLAY
      A                                      SFLSIZ(0014)
      A                                      SFLPAG(0007)
-     A  01                                  SFLEND(*MORE)
+     A  01                                  SFLEND(*SCRBAR)
      A N02                                  SFLCLR
      A  02                                  SFLDSP
      A  02                                  SFLDSPCTL
@@ -74,8 +75,8 @@
      A* spanning rows 1 through 16+ while subfile is at rows 8-14.
      A*--------------------------------------------------------------
      A          R SFFOOT                    OVERLAY
-     A                                 16  2'F3=Exit  F5=Refresh  F6=Add'
-     A                                 17  2'F8=Pending  F9=Done  F10=All'
+     A                                 22  2'F3=Exit  F5=Refresh  F6=Add task'
+     A                                 23  2'F8=Pending  F9=Done  F10=All'
      A*--------------------------------------------------------------
      A* ADDSCR - Add new todo screen
      A*--------------------------------------------------------------
