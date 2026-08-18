@@ -64,7 +64,7 @@
   },
   {
     "name": "Create DSPF",
-    "command": "CRTDSPF FILE(&CURLIB/&NAME) SRCFILE(&SRCFILE) RSTDSP(*NO) OPTION(*EVENTF)",
+    "command": "CRTDSPF FILE(&CURLIB/&NAME) SRCSTMF('&RELATIVEPATH') ENHDSP(*NO) RSTDSP(*NO) DFRWRT(*NO) OPTION(*EVENTF *SRC *LIST)",
     "environment": "ile",
     "deployFirst": true,
     "extensions": [
@@ -93,8 +93,8 @@
     "extensions": [
       "GLOBAL"
     ],
-    "name": "Build all with TOBi",
-    "command": "OPT=*EVENTF BUILDLIB=&CURLIB /QOpenSys/pkgs/bin/makei build",
+    "name": "Build current with TOBi",
+    "command": "OPT=*EVENTF BUILDLIB=&CURLIB /QOpenSys/pkgs/bin/makei compile -f &BASENAME",
     "environment": "pase",
     "deployFirst": true,
     "postDownload": [
@@ -106,13 +106,18 @@
     "extensions": [
       "GLOBAL"
     ],
-    "name": "Build current with TOBi",
-    "command": "OPT=*EVENTF BUILDLIB=&CURLIB /QOpenSys/pkgs/bin/makei compile -f &BASENAME",
+    "name": "Clean IBM i objects",
+    "command": "/QOpenSys/pkgs/bin/bash setup/clean.sh &CURLIB",
     "environment": "pase",
-    "deployFirst": true,
-    "postDownload": [
-      ".logs",
-      ".evfevent"
-    ]
+    "deployFirst": true
+  },
+  {
+    "extensions": [
+      "GLOBAL"
+    ],
+    "name": "Post-build fix (CHGDSPF RSTDSP DFRWRT)",
+    "command": "/QOpenSys/pkgs/bin/bash setup/postbuild.sh &CURLIB",
+    "environment": "pase",
+    "deployFirst": true
   }
 ]
