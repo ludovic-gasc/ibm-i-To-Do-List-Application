@@ -110,14 +110,5 @@
     "command": "/QOpenSys/pkgs/bin/bash setup/clean.sh &CURLIB",
     "environment": "pase",
     "deployFirst": true
-  },
-  {
-    "extensions": [
-      "GLOBAL"
-    ],
-    "name": "Post-build fix (CHGDSPF RSTDSP DFRWRT)",
-    "command": "/QOpenSys/pkgs/bin/bash setup/postbuild.sh &CURLIB",
-    "environment": "pase",
-    "deployFirst": true
   }
 ]
