@@ -1,9 +1,14 @@
 # qddssrc/Rules.mk
-# TODODSPF.FILE - compiled directly from TODOLIB/QDDSSRC member.
-# The IFS stream file (tododspf.dspf) is kept for git history only.
-# CPD7812 lesson: SFCTL footprint spans first-to-last constant row;
-# any SFCTL constant below the subfile page triggers the overlap.
-# Fix: use a separate SFFOOT OVERLAY record for below-subfile content.
+# TODODSPF.FILE - compiled by TOBI via CRTDSPF from tododspf.dspf.
+#
+# TOBI defaults: ENHDSP(*YES) RSTDSP(*YES) DFRWRT(*YES)
+# These are incompatible with tn5250/ACS sessions and cause:
+#   "Session or device error occurred in file TODODSPF (C G D F)"
+#
+# Fix: override ENHDSP, RSTDSP, DFRWRT via target-specific variables.
+# TOBI injects these directly into CRTDSPFFLAGS — no post-build step needed.
 
-TODODSPF.FILE:
-	system "CRTDSPF FILE($(OBJLIB)/TODODSPF) SRCFILE($(OBJLIB)/QDDSSRC) SRCMBR(TODODSPF) ENHDSP(*YES) RSTDSP(*YES) DFRWRT(*YES) OPTION(*EVENTF *SRC *LIST) TEXT('Todo List 5250 display file')"
+TODODSPF.FILE: tododspf.dspf
+TODODSPF.FILE: ENHDSP = *NO
+TODODSPF.FILE: RSTDSP = *NO
+TODODSPF.FILE: DFRWRT = *NO

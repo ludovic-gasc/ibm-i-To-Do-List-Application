@@ -1,7 +1,7 @@
 {
   "version": "0.0.1",
   "build": {
-    "tgtCcsid": "*JOB"
+    "tgtCcsid": "37"
   },
   "includePath": [
     "qcpysrc"

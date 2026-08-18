@@ -1,4 +1,4 @@
 # qsqlsrc/Rules.mk
-# Creates the TODOS table from SQL DDL source.
-# TOBI handles .sql sources as *TABLE (RUNSQLSTM).
-TODOS.TABLE: todos.sql
+# Creates the TODOS table from the SQL DDL source.
+# TOBI runs RUNSQLSTM on todos.table and creates TODOS (*FILE) in TODOLIB.
+TODOS.FILE: todos.table
