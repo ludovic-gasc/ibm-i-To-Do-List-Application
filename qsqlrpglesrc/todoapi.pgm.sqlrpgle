@@ -45,6 +45,20 @@ dcl-pr QtmhWrStout extproc('QtmhWrStout');
   errorCode char(256)   options(*varsize);  // error code DS
 end-pr;
 
+// QtmhWrStoutP - meme API via pointeur (pour body UTF-8 brut)
+dcl-pr QtmhWrStoutP extproc('QtmhWrStout');
+  buffer    pointer value;
+  bufLen    int(10);
+  errorCode char(256)   options(*varsize);
+end-pr;
+
+// memcpy : copie brute de bytes sans conversion CCSID (ILE C runtime)
+dcl-pr memcpy pointer extproc('memcpy');
+  dest  pointer value;
+  src   pointer value;
+  count uns(10)  value;
+end-pr;
+
 // ---- Service program procedures ----------------------------
 /include 'qcpysrc/todosvc_h.rpgle'
 
@@ -59,6 +73,17 @@ dcl-s  todoCount  int(10);
 dcl-s  i          int(10);
 dcl-ds wTodo      likeds(TodoDS);
 
+// Variables globales pour sendResponse et readStdin
+// Placees ici pour que le precompilateur SQL les voie
+// VARCHAR max 32704 en EXEC SQL embarque
+dcl-s gBodyEbc   varchar(32704) ccsid(*jobrun);
+dcl-s gBodyUtf8  varchar(32704) ccsid(1208);
+// Pour la conversion ASCII (stdin) -> EBCDIC
+// On utilise char (pas varchar) pour eviter la conversion implicite lors du %subst
+dcl-s gStdinAscC char(32704)    ccsid(819);
+dcl-s gStdinAsc  varchar(32704) ccsid(819);
+dcl-s gStdinEbc  varchar(32704) ccsid(*jobrun);
+
 // ============================================================
 // Main entry point
 // ============================================================
@@ -66,6 +91,11 @@ reqMethod   = getEnvStr('REQUEST_METHOD': 10);
 pathInfo    = getEnvStr('PATH_INFO': 1024);
 queryString = getEnvStr('QUERY_STRING': 1024);
 contentType = getEnvStr('CONTENT_TYPE': 256);
+
+// Avec ScriptAliasMatch, PATH_INFO est vide et la route est dans SCRIPT_NAME
+if pathInfo = '';
+  pathInfo = getEnvStr('SCRIPT_NAME': 1024);
+endif;
 
 select;
   when reqMethod = 'GET' and pathInfo = '/todos';
@@ -156,8 +186,8 @@ dcl-proc handlePutStatus;
   dcl-s rc    int(10);
 
   parts = pathInfo;
-  seg4  = getPathSegment(parts: 4);
-  seg5  = getPathSegment(parts: 5);
+  seg4  = getPathSegment(parts: 3);  // /todo/status/{id}/{status} -> seg3=id
+  seg5  = getPathSegment(parts: 4);  // seg4=status
 
   if seg4 = '' or seg5 = '';
     sendResponse('400 Bad Request': 'application/json':
@@ -237,19 +267,28 @@ dcl-proc sendResponse;
     body    varchar(65535) const;
   end-pi;
 
-  dcl-s  headers  varchar(1024);
-  dcl-s  output   varchar(65535);
-  dcl-s  outBuf   char(65535);
+  // NL en EBCDIC 037 = x'15' : separateur CGI headers (doc IBM)
+  dcl-c  NL       x'15';
+  dcl-s  hdrEbc   varchar(1024) ccsid(*jobrun);
+  dcl-s  hdrBuf   char(1024);
   dcl-s  errDs    char(256);
-  dcl-s  outLen   int(10);
+  dcl-s  hdrLen   int(10);
+  dcl-s  bodyLen  int(10);
 
-  headers = 'Status: ' + status + x'0D0A'
-          + 'Content-Type: ' + ctype + x'0D0A'
-          + x'0D0A';
-  output  = headers + body;
-  outLen  = %len(output);
-  %subst(outBuf: 1: outLen) = output;
-  QtmhWrStout(outBuf: outLen: errDs);
+  // 1. Headers en EBCDIC avec NL comme separateur
+  hdrEbc = 'Status: '        + status          + NL
+         + 'Content-Type: '  + ctype
+         + '; charset=utf-8' + NL
+         + NL;
+  hdrLen = %len(hdrEbc);
+  %subst(hdrBuf: 1: hdrLen) = hdrEbc;
+  QtmhWrStout(hdrBuf: hdrLen: errDs);
+
+  // 2. Body : convertir EBCDIC -> UTF-8 via CAST SQL, puis ecrire
+  gBodyEbc = %subst(body: 1: %min(%len(body): 32704));
+  exec sql SET :gBodyUtf8 = CAST(:gBodyEbc AS VARCHAR(32704) CCSID 1208);
+  bodyLen = %len(gBodyUtf8);
+  QtmhWrStoutP(%addr(gBodyUtf8 : *data): bodyLen: errDs);
 end-proc;
 
 // ============================================================
@@ -263,13 +302,22 @@ dcl-proc readStdin;
   dcl-s bufLen    int(10);
   dcl-s bytesRead int(10);
   dcl-s errDs     char(256);
+  dcl-s safeLen   int(10);
 
   bufLen = %size(buf);
   QtmhRdStin(buf: bufLen: bytesRead: errDs);
-  if bytesRead > 0;
-    return %trim(%subst(buf: 1: bytesRead));
+  if bytesRead = 0;
+    return '';
   endif;
-  return '';
+
+  // Le stdin arrive en ASCII (CGIConvMode EBCDIC ne convertit pas application/json).
+  // On utilise memcpy pour copier les bytes bruts SANS conversion CCSID,
+  // puis CAST SQL ccsid 37 pour traduire ASCII 819 -> EBCDIC 37.
+  safeLen = %min(bytesRead: 32704);
+  %len(gStdinAsc) = safeLen;
+  memcpy(%addr(gStdinAsc : *data): %addr(buf): %uns(safeLen));
+  exec sql SET :gStdinEbc = CAST(:gStdinAsc AS VARCHAR(32704) CCSID 37);
+  return %trimr(gStdinEbc);
 end-proc;
 
 // ============================================================
